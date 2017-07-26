@@ -10,10 +10,14 @@
 
 */
 
+// PIN DEFINITIONS
 #define THERMOCOUPLE_PIN 1
 #define PSU_OUTPUT_PIN 2
 #define V_IN_PIN 3
 #define I_SENSE_PIN 4
+
+// OTHER DEFINITIONS
+#define BAUD 115200
 
 PROGMEM enum LightState 
 {
