@@ -16,17 +16,31 @@
 #define V_IN_PIN 3
 #define I_SENSE_PIN 4
 
-// OTHER DEFINITIONS
+// SERIAL DEFINITIONS
 #define BAUD 115200
-#define TEST_CMD "test"
-#define RUN_CMD "run"
-#define STOP_CMD "stop"
+#define TEST_CMD String("test")
+#define RUN_CMD String("run")
+#define STOP_CMD String("stop")
+
+#define SUCCESS Serial.println(String("done"))
+#define FAIL(err) Serial.println(String("fail"));Serial.println(String(err))
 
 PROGMEM enum LightState 
 {
   ON,
   OFF
 };
+
+PROGMEM enum ProgramState
+{
+  IDLE,
+  TEST,
+  RUN
+};
+
+int testmsgcnt = 0;
+String cmdCode = "";
+ProgramState state = IDLE;
 
 void setup() 
 {
@@ -41,20 +55,77 @@ void setup()
 void loop() 
 {
   feedCommand();
+
+  switch (state)
+  {
+    case IDLE:
+      // NO-OP
+      break;
+    case TEST:
+      runTestIt();
+      break;
+    case RUN:
+      runMainIt();
+      break;
+      
+  }
+}
+
+void runTestIt()
+{
+  delay(2000);
+  SUCCESS;
+  state = IDLE;
+}
+
+void runMainIt()
+{
+  delay(2000);
+  if (testmsgcnt <= 6)
+  {
+    Serial.println("Example main");
+  } else {
+    SUCCESS;
+  }
+
+  testmsgcnt++;
 }
 
 void feedCommand()
 {
-  String code = "";
   if (Serial.available()) 
   {
-    code = Serial.readString();
-  }
-  if (code == "test\n") {
-    Serial.println("Beginning test routine");
-    code = "";
+    cmdCode = Serial.readString();
+    runExternalCmd();
+    cmdCode = "";
   }
 }
+
+void runExternalCmd() {
+  if (cmdCode == (TEST_CMD + String('\n'))) 
+  {
+    state = TEST;
+  } 
+  else if (cmdCode == (RUN_CMD + String('\n')))
+  {
+    state = RUN;
+  }
+  else if (cmdCode == (STOP_CMD + String('\n')))
+  {
+    state = IDLE;
+  }
+}
+
+void testDevice()
+{
+  
+}
+
+void runMain()
+{
+  
+}
+
 
 float getCellTemperature()
 {
