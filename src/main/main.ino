@@ -18,6 +18,9 @@
 
 // OTHER DEFINITIONS
 #define BAUD 115200
+#define TEST_CMD "test"
+#define RUN_CMD "run"
+#define STOP_CMD "stop"
 
 PROGMEM enum LightState 
 {
@@ -32,12 +35,25 @@ void setup()
   pinMode(V_IN_PIN, INPUT);
   pinMode(I_SENSE_PIN, INPUT);
   pinMode(PSU_OUTPUT_PIN, OUTPUT);
-
+  Serial.begin(BAUD);
 }
 
 void loop() 
 {
-  
+  feedCommand();
+}
+
+void feedCommand()
+{
+  String code = "";
+  if (Serial.available()) 
+  {
+    code = Serial.readString();
+  }
+  if (code == "test\n") {
+    Serial.println("Beginning test routine");
+    code = "";
+  }
 }
 
 float getCellTemperature()
