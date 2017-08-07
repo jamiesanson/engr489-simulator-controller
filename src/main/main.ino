@@ -14,6 +14,7 @@
       * "run\n"  - Runs the main operation of the hardware.
       * "stop\n" - Stops the main operation of the hardware.
       * "temp:5,10,15,20,25...\n" - Sets the temperature targets for the device.
+      * "t_thresh:1.5\n" - Sets the temperature target threshold for taking measurements.
 
     The hardware used includes:
       * MAX31855K - SPI-based K-type thermocouple amplifier
@@ -43,9 +44,16 @@
 #define RUN_CMD String("run")
 #define STOP_CMD String("stop")
 #define TEMP_RNG_HEADER String("temp:")
+#define TEMP_THR_HEADER String("t_thresh:")
 
+// USEFUL MACROS
 #define SUCCESS Serial.println(String("done"))
 #define FAIL(err) Serial.println(String("fail"));Serial.println(String(err))
+#define lengthOf( x )  ( sizeof( x ) / sizeof( *x ) )
+#define isCmd(cmd) cmdCode.substring(0, cmd.length()) == cmd
+
+// CONFIG MACROS
+#define TEMP_AVERAGE_COUNT 10
 
 PROGMEM enum LightState 
 {
@@ -65,14 +73,17 @@ static const int STEPS_PER_REVOLUTION = 64 * 32;
 static const int STEPS_PER_MEASUREMENT = 5;
 
 String cmdCode = "";
-double temperatureBuffer[20];
-ProgramState state = IDLE;
+float temperatureBuffer[20] = {};
+float temperatureThreshold = -1.0;
 
 // Thermocouple instantiation. Usage: Thermocouple.readCelcius() : Double. Check output using isnan
 Adafruit_MAX31855 Thermocouple(THERMOCOUPLE_CS); 
 
 // Stepper Motor instantiation. Usage: StepperMotor.step(number_of_steps : Int)
 X113647Stepper StepperMotor(STEPS_PER_REVOLUTION, SM_IN1, SM_IN2, SM_IN3, SM_IN4);
+
+// Program state
+ProgramState state = IDLE;
 
 void setup() 
 {
@@ -116,6 +127,7 @@ void runMainIt()
   //       - Run pot sweep measuring voltage and current
   //       - Log data to SD card and repeat
   //       - Wait for next temperature value
+  
   SUCCESS;
   state = IDLE;
 }
@@ -130,16 +142,29 @@ void stepAndMeasure()
   
 }
 
+boolean isTemperatureNearTarget()
+{
+  float temp = getCellTemperature();
+  for (int i = 0; i < lengthOf(temperatureBuffer); i++)
+  {
+    if (abs(temp - temperatureBuffer[i]) < temperatureThreshold) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void feedCommand()
 {
   if (Serial.available()) 
   {
     cmdCode = Serial.readString();
     
-    if (cmdCode.substring(0, TEMP_RNG_HEADER.length()) == TEMP_RNG_HEADER) 
+    if (isCmd(TEMP_RNG_HEADER)) 
     {
-      
-    } else 
+      parseTemperatureRange();
+    } else if (isCmd(TEMP_THR_HEADER))
     {
       runExternalCmd(); 
     }
@@ -152,13 +177,20 @@ void parseTemperatureRange()
 {
   String tempArr = cmdCode.substring(TEMP_RNG_HEADER.length());
   int commaIndex = 0;
+  int count = 0;
   
   while (commaIndex != -1)
   {
     int nextComma = tempArr.indexOf(commaIndex, ',');
     String temp = tempArr.substring(commaIndex, nextComma == -1 ? tempArr.length() : nextComma);
+
+    if (count < lengthOf(temperatureBuffer)) 
+    {
+      temperatureBuffer[count] = temp.toFloat();
+    }
     
     commaIndex = nextComma;
+    count++;
   }
 }
 
@@ -169,7 +201,21 @@ void runExternalCmd() {
   } 
   else if (cmdCode == (RUN_CMD + String('\n')))
   {
-    state = RUN;
+    float sumTempBuffer = 0.0;
+    for (int i = 0; i < lengthOf(temperatureBuffer); i++) {
+      sumTempBuffer += temperatureBuffer[i];
+    }
+    
+    boolean tempSetup = temperatureThreshold >= 0 && sumTempBuffer > 0.0;
+    
+    if (tempSetup) 
+    {
+      state = RUN;
+    } else 
+    {
+      FAIL("Temperature threshold or target values not set");
+      state = IDLE;
+    }
   }
   else if (cmdCode == (STOP_CMD + String('\n')))
   {
@@ -179,7 +225,13 @@ void runExternalCmd() {
 
 float getCellTemperature()
 {
-  return Thermocouple.readCelsius();
+  double temp = 0.0;
+  for (int i = 0; i < TEMP_AVERAGE_COUNT; i++)
+  {
+    temp += Thermocouple.readCelsius();
+  }
+
+  return temp/10.0;
 }
 
 float getLoadVoltage()
