@@ -10,11 +10,19 @@
 
 */
 
+// INCLUDES
+#include "Adafruit_MAX31855.h"
+#include <X113647Stepper.h>
+
 // PIN DEFINITIONS
-#define THERMOCOUPLE_PIN 1
 #define PSU_OUTPUT_PIN 2
 #define V_IN_PIN 3
 #define I_SENSE_PIN 4
+#define THERMOCOUPLE_CS 10
+#define SM_IN1 16
+#define SM_IN2 17
+#define SM_IN3 18
+#define SM_IN4 19
 
 // SERIAL DEFINITIONS
 #define BAUD 115200
@@ -38,18 +46,26 @@ PROGMEM enum ProgramState
   RUN
 };
 
-int testmsgcnt = 0;
+// Steps per revolution for stepper motor
+static const int STEPS_PER_REVOLUTION = 64 * 32; 
+
 String cmdCode = "";
 ProgramState state = IDLE;
+
+// Thermocouple instantiation. Usage: Thermocouple.readCelcius() : Double. Check output using isnan
+Adafruit_MAX31855 Thermocouple(THERMOCOUPLE_CS); 
+
+// Stepper Motor instantiation. Usage: StepperMotor.step(number_of_steps : Int)
+X113647Stepper StepperMotor(STEPS_PER_REVOLUTION, SM_IN1, SM_IN2, SM_IN3, SM_IN4);
 
 void setup() 
 {
   // Initialise pin modes
-  pinMode(THERMOCOUPLE_PIN, INPUT);
   pinMode(V_IN_PIN, INPUT);
   pinMode(I_SENSE_PIN, INPUT);
   pinMode(PSU_OUTPUT_PIN, OUTPUT);
   Serial.begin(BAUD);
+  StepperMotor.setSpeed(5);
 }
 
 void loop() 
@@ -80,15 +96,12 @@ void runTestIt()
 
 void runMainIt()
 {
-  delay(2000);
-  if (testmsgcnt <= 6)
-  {
-    Serial.println("Example main");
-  } else {
-    SUCCESS;
-  }
-
-  testmsgcnt++;
+  // TODO: - Wait for temperature to reach set values
+  //       - Run pot sweep measuring voltage and current
+  //       - Log data to SD card and repeat
+  //       - Wait for next temperature value
+  SUCCESS;
+  state = IDLE;
 }
 
 void feedCommand()
@@ -115,17 +128,6 @@ void runExternalCmd() {
     state = IDLE;
   }
 }
-
-void testDevice()
-{
-  
-}
-
-void runMain()
-{
-  
-}
-
 
 float getCellTemperature()
 {
