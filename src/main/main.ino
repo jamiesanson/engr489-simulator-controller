@@ -8,6 +8,19 @@
     of both current and voltage at varying cells load, as well as being able to illuminate
     the cell being tested only when it needs to be.
 
+    This code expects Serial in specific formats. These are:
+      * "test\n" - Runs a self test of the hardware and reports back via Serial, 
+                   finalised by the use of the `SUCCESS;` macro.
+      * "run\n"  - Runs the main operation of the hardware.
+      * "stop\n" - Stops the main operation of the hardware.
+      * "temp:5,10,15,20,25...\n" - Sets the temperature targets for the device.
+
+    The hardware used includes:
+      * MAX31855K - SPI-based K-type thermocouple amplifier
+      * X113647 and 28BYJ-48 - Stepper driver and motor respectively
+      * MP930 - 1 ohm thick film power resistor
+      * Generic 5 ohm and 10 ohm rotary potentiometersa
+
 */
 
 // INCLUDES
@@ -29,6 +42,7 @@
 #define TEST_CMD String("test")
 #define RUN_CMD String("run")
 #define STOP_CMD String("stop")
+#define TEMP_RNG_HEADER String("temp:")
 
 #define SUCCESS Serial.println(String("done"))
 #define FAIL(err) Serial.println(String("fail"));Serial.println(String(err))
@@ -48,8 +62,10 @@ PROGMEM enum ProgramState
 
 // Steps per revolution for stepper motor
 static const int STEPS_PER_REVOLUTION = 64 * 32; 
+static const int STEPS_PER_MEASUREMENT = 5;
 
 String cmdCode = "";
+double temperatureBuffer[20];
 ProgramState state = IDLE;
 
 // Thermocouple instantiation. Usage: Thermocouple.readCelcius() : Double. Check output using isnan
@@ -104,13 +120,45 @@ void runMainIt()
   state = IDLE;
 }
 
+void stepAndMeasure() 
+{
+  StepperMotor.step(STEPS_PER_MEASUREMENT);
+  float temp = getCellTemperature();
+  float loadV = getLoadVoltage();
+  float loadI = getLoadCurrent();
+
+  
+}
+
 void feedCommand()
 {
   if (Serial.available()) 
   {
     cmdCode = Serial.readString();
-    runExternalCmd();
+    
+    if (cmdCode.substring(0, TEMP_RNG_HEADER.length()) == TEMP_RNG_HEADER) 
+    {
+      
+    } else 
+    {
+      runExternalCmd(); 
+    }
+    
     cmdCode = "";
+  }
+}
+
+void parseTemperatureRange()
+{
+  String tempArr = cmdCode.substring(TEMP_RNG_HEADER.length());
+  int commaIndex = 0;
+  
+  while (commaIndex != -1)
+  {
+    int nextComma = tempArr.indexOf(commaIndex, ',');
+    String temp = tempArr.substring(commaIndex, nextComma == -1 ? tempArr.length() : nextComma);
+    
+    commaIndex = nextComma;
   }
 }
 
@@ -131,7 +179,7 @@ void runExternalCmd() {
 
 float getCellTemperature()
 {
-  
+  return Thermocouple.readCelsius();
 }
 
 float getLoadVoltage()
