@@ -1,0 +1,24 @@
+%% Spatial Uniformity
+
+% Matrix of data corresponding to cells on test bed
+%
+% - 400mm separation of light bed from base of frame
+% - Lights angles 5 degrees outward
+data = [850 860 955;...
+        950 930 1000;...
+        870 834 900];
+    
+heatmap(data, [], [], '%0.0f', 'ColorMap', 'cool');
+title('Irradiance Map (W/m^2)');
+
+low_bound = min(data(:))/1000;
+up_bound = max(data(:))/1000;
+percent_uniform = 100 - 100*(low_bound + up_bound)/2
+
+if (percent_uniform <= 2.0) 
+    disp('Class A')
+elseif (percent_uniform <= 5.0)
+    disp('Class B')
+elseif (percent_unform <= 10.0)
+    disp('Class C')
+end
