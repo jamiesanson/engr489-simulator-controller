@@ -165,6 +165,7 @@ void feedCommand()
     {
       parseTemperatureRange();
     } else if (isCmd(TEMP_THR_HEADER))
+      
     {
       runExternalCmd(); 
     }
@@ -182,7 +183,8 @@ void parseTemperatureRange()
   while (commaIndex != -1)
   {
     int nextComma = tempArr.indexOf(commaIndex, ',');
-    String temp = tempArr.substring(commaIndex, nextComma == -1 ? tempArr.length() : nextComma);
+    // Length -1 is used on the following line as we want to neglect the '\n' character
+    String temp = tempArr.substring(commaIndex, nextComma == -1 ? tempArr.length() - 1 : nextComma);
 
     if (count < lengthOf(temperatureBuffer)) 
     {
@@ -192,6 +194,11 @@ void parseTemperatureRange()
     commaIndex = nextComma;
     count++;
   }
+}
+
+void parseTemperatureThreshold()
+{
+  String 
 }
 
 void runExternalCmd() {
@@ -206,9 +213,9 @@ void runExternalCmd() {
       sumTempBuffer += temperatureBuffer[i];
     }
     
-    boolean tempSetup = temperatureThreshold >= 0 && sumTempBuffer > 0.0;
+    boolean setupOk = temperatureThreshold >= 0 && sumTempBuffer > 0.0;
     
-    if (tempSetup) 
+    if (setupOk) 
     {
       state = RUN;
     } else 
