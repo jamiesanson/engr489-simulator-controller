@@ -1,4 +1,4 @@
-# engr489-simulator-controller
+# ENGR489: Solar Simulator
 This repository contains code relating to the operation of a solar simulator, constructed for my ENGR489 project. Included in this is code to run a Teensy 3.6 Microprocessor board as a controller of the system, as well as a measurement device. This communicates with the host computer over serial, which is handles through the command line using Python for input handling, threading, and filesystem operations.
 As well as this, MATLAB code is included to compute statistics regarding the simulator specifications in line with the ASTM E927 Solar Simulator Standard.
 
