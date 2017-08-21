@@ -5,7 +5,7 @@ import os
 import time
 from curses.ascii import NL as newline
 from curses.ascii import BS as backspace
-from serial_utils import solar_serial_port, DisconnectedError, serial_thread, connect
+from serial_utils import solar_serial_port, DisconnectedError, serial_manager
 from utils import Command, split_input
 
 # Initialising the curses session and overriding print
@@ -34,6 +34,11 @@ def exit():
     os.system('cls' if os.name == 'nt' else 'clear')
     sys.exit(1)
 
+def test():
+    global serial_manager
+    with serial_manager as sm:
+        sm.output("test")
+
 def help(name):
     for command in commands:
         if command.name == name:
@@ -48,21 +53,29 @@ def help(name):
     println("Unknown function: %s" % name)
 
 def run(args):
-    targets = ""
-    thresh = ""
-    if 'targets' in args:
-        targets = args['targets']
-    else:
-        println("Missing temperature targets argument, try run -targets 5,10,30 -threshold 2")
-        return
+    global serial_manager
+    with serial_manager as sm:
+        targets = ""
+        thresh = ""
+        if 'targets' in args:
+            targets = args['targets']
+        else:
+            println("Missing temperature targets argument, try run -targets 5,10,30 -threshold 2")
+            return
 
-    if 'threshold' in args:
-        thresh = args['threshold']
-    else:
-        println("Missing temperature threshold argument, try run -targets 5,10,30 -threshold 2")
-        return
+        if 'threshold' in args:
+            thresh = args['threshold']
+        else:
+            println("Missing temperature threshold argument, try run -targets 5,10,30 -threshold 2")
+            return
 
-    println("Begining simulator controller for targets: %s and temperature threshold: %s" % (targets, thresh))
+        println("Begining simulator controller for targets: %s and temperature threshold: %s" % (targets, thresh))
+        sm.output("test")
+        in_str = sm.read_in()
+        while not in_str:
+            in_str = sm.read_in()
+        
+        println(in_str)
 
 def stop():
     # TODO expand on this by sending serial message
@@ -78,12 +91,11 @@ def run_command(command):
     elif name == "help":
         help(c['fun'])
     elif name == "run":
-        global ser
-        ser = connect(ser, lambda err: println(err))
-        if ser:
-            run(c)
+        run(c)
     elif name == "stop":
         stop()
+    elif name== "test":
+        test()
     else:
         println("Unknown command: %s, try the `help` command" % name)
 
@@ -109,6 +121,7 @@ commands = [Command("help", "Run as `help <command>` for more information about 
 solar_port = ""
 
 ser = None
+serial_manager = serial_manager()
         
 println()
 println("Available commands:")

@@ -44,15 +44,15 @@
 #define TEST_CMD String("test")
 #define RUN_CMD String("run")
 #define STOP_CMD String("stop")
+#define ANNOUNCE_CMD String("sst36vuw")
 #define TEMP_RNG_HEADER String("temp:")
 #define TEMP_THR_HEADER String("t_thresh:")
-#define ANNOUNCE_CMD String("sst36vuw")
 
 // USEFUL MACROS
 #define SUCCESS Serial.println(String("done"))
 #define FAIL(err) Serial.println(String("fail"));Serial.println(String(err))
 #define lengthOf( x )  ( sizeof( x ) / sizeof( *x ) )
-#define isCmd(cmd) cmdCode.substring(0, cmd.length()) == cmd
+#define isCmd(cmd) String(cmdCode.substring(0, cmd.length())).equalsIgnoreCase(cmd)
 
 // CONFIG MACROS
 #define TEMP_AVERAGE_COUNT 10
@@ -162,12 +162,15 @@ void feedCommand()
   if (Serial.available()) 
   {
     cmdCode = Serial.readString();
-    
+
     if (isCmd(TEMP_RNG_HEADER)) 
     {
       parseTemperatureRange();
-    } else if (isCmd(TEMP_THR_HEADER))
+    } else if (isCmd(TEMP_THR_HEADER)) 
+    {      
       
+    } 
+    else       
     {
       runExternalCmd(); 
     }
@@ -203,11 +206,11 @@ void parseTemperatureThreshold()
 }
 
 void runExternalCmd() {
-  if (cmdCode == (TEST_CMD + String('\n'))) 
+  if (isCmd(TEST_CMD)) 
   {
     state = TEST;
   } 
-  else if (cmdCode == (RUN_CMD + String('\n')))
+  else if (isCmd(RUN_CMD))
   {
     float sumTempBuffer = 0.0;
     for (int i = 0; i < lengthOf(temperatureBuffer); i++) {
@@ -225,11 +228,11 @@ void runExternalCmd() {
       state = IDLE;
     }
   }
-  else if (cmdCode == (STOP_CMD + String('\n')))
+  else if (isCmd(STOP_CMD))
   {
     state = IDLE;
   }
-  else if (cmdCode == (ANNOUNCE_CMD + String('\n')))
+  else if (isCmd(ANNOUNCE_CMD))
   {
     Serial.println("active");
   }

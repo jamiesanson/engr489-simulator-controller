@@ -1,7 +1,9 @@
 import sys
 import glob
 import serial
-import threading
+from threading import Thread
+import time
+from queue import Queue
 
 class DisconnectedError(Exception):
     pass
@@ -47,18 +49,17 @@ def solar_serial_port():
 
     for port in ports:
         try:
-            s = serial.Serial(port = port, \
+            with serial.Serial(port = port, \
                                 baudrate = 115200,\
                                 write_timeout = 1, \
-                                timeout = 1)
+                                timeout = 1.5) as s:
 
-            
-            print("Wrote: " + str(s.write("sst36vuw".encode())))
-            response = str(s.readline()).strip('b''').strip('\\r\\n')
-            print("Response: " + str(response))
-            if response == "active":
-                s.close()
-                return port
+                s.write(b'sst36vuw')
+                response = str(s.readline()).strip("b'").strip("\\r\\n")
+
+                if response == "active":
+                    s.close()
+                    return port
 
         except Exception as e:
             print(e)
@@ -66,49 +67,73 @@ def solar_serial_port():
 
     raise DisconnectedError("Simulator not found, please check connections and try again")
 
+"""
+    Class for managing serial interactions. Should be accessed on main thread
+"""            
+class serial_manager():
+    def __init__(self):
+        self.out_q = Queue()
+        self.in_q = Queue()
 
+    def __enter__(self):
+        self.ser = self.__connect(None, lambda err: print(err))
+        if self.ser:
+            self.st = Thread(name = "Serial-Thread", \
+                            daemon = True, \
+                            target = self.ser_thread, \
+                            args = (self.ser, self.in_q, self.out_q))
+            self.st.start()
+        return self
 
-def connect(ser, on_err):
-    """ Trys to connect to serial instance
+    def __exit__(self, exc_type, exc_value, traceback):
+        # Nothing to do here. We want to maintain queue status
+        self.ext = True
+        
+    def __connect(self, ser, on_err):
+        """ Trys to connect to serial instance
 
-        :turns:
-            If controller is connected
-    """
+            :turns:
+                If controller is connected
+        """
 
-    if not ser:
-        # Check for simulator, if not here then exit at this point
-        try:
-            solar_port = solar_serial_port()
-        except (EnvironmentError, DisconnectedError) as e:
-            on_err(str(e))
-            return None
+        if not ser:
+            # Check for simulator, if not here then exit at this point
+            try:
+                solar_port = solar_serial_port()
+            except (EnvironmentError, DisconnectedError) as e:
+                on_err(str(e))
+                return None
 
-        ser = serial.Serial(solar_port, \
-                            baudrate = 115200,\
-                            write_timeout = 1, \
-                            timeout = 1)
-                        
-    try:
-        ser.open()
-        if ser.read():
-            ser.close()
+            ser = serial.Serial(solar_port, \
+                                baudrate = 115200,\
+                                write_timeout = 1, \
+                                timeout = 2)
             return ser
+        else:
+            try:
+                if ser.read():
+                    return ser
 
-        ser.close()
-    except:
-        on_err("Port was found but connection failed")
-        return None
+            except Exception as e:
+                on_err("Port was found but connection failed")
+                on_err(str(e))
+                return None
 
-"""
-    Class for handling serial threading
-"""
-class serial_thread(threading.Thread):
-    def __init__(self, serial, name = "Serial"):
-        threading.Thread.__init__(self)
-        self.name = name
-        self.serial = serial
-    
-    def run(self):
+    def ser_thread(self, ser, in_q, out_q):
         while True:
-            println("Reading serial")
-            delay(1000)
+            if not out_q.empty():
+                ser.write(out_q.get())
+
+            in_q.put(str(ser.readline()).strip("b'").strip("\\r\\n"))
+
+    def output(self, string):
+        if not self.st.is_alive():
+            __enter__()
+
+        self.out_q.put(string.encode())
+
+    def read_in(self):
+        if not self.st.is_alive():
+            __enter__()
+
+        return self.in_q.get()
