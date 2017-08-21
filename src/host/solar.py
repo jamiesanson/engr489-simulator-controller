@@ -38,6 +38,11 @@ def test():
     global serial_manager
     with serial_manager as sm:
         sm.output("test")
+        in_str = sm.read_in()
+        while in_str != "done":
+            println(in_str)     
+            screen.refresh()
+            in_str = sm.read_in()   
 
 def help(name):
     for command in commands:

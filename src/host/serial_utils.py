@@ -1,7 +1,7 @@
 import sys
 import glob
 import serial
-from threading import Thread
+from threading import Thread, Event
 import time
 from queue import Queue
 
@@ -67,6 +67,7 @@ def solar_serial_port():
 
     raise DisconnectedError("Simulator not found, please check connections and try again")
 
+
 """
     Class for managing serial interactions. Should be accessed on main thread
 """            
@@ -74,20 +75,31 @@ class serial_manager():
     def __init__(self):
         self.out_q = Queue()
         self.in_q = Queue()
+        self.ser = None
+        self.st = None
+        self.stop = Event()
 
     def __enter__(self):
-        self.ser = self.__connect(None, lambda err: print(err))
+        self.in_q = Queue()
+        self.out_q = Queue()
+        if not self.ser:
+            self.ser = self.__connect(None, lambda err: print(err))
+
         if self.ser:
             self.st = Thread(name = "Serial-Thread", \
                             daemon = True, \
                             target = self.ser_thread, \
-                            args = (self.ser, self.in_q, self.out_q))
+                            args = (self.ser, self.in_q, self.out_q, self.stop))
             self.st.start()
+
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         # Nothing to do here. We want to maintain queue status
-        self.ext = True
+        self.stop.set()
+        self.st.join()
+
+        self.stop = Event()
         
     def __connect(self, ser, on_err):
         """ Trys to connect to serial instance
@@ -108,19 +120,11 @@ class serial_manager():
                                 baudrate = 115200,\
                                 write_timeout = 1, \
                                 timeout = 2)
-            return ser
-        else:
-            try:
-                if ser.read():
-                    return ser
 
-            except Exception as e:
-                on_err("Port was found but connection failed")
-                on_err(str(e))
-                return None
+        return ser
 
-    def ser_thread(self, ser, in_q, out_q):
-        while True:
+    def ser_thread(self, ser, in_q, out_q, stop):
+        while not stop.is_set():
             if not out_q.empty():
                 ser.write(out_q.get())
 

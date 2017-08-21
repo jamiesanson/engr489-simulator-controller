@@ -118,7 +118,15 @@ void loop()
 
 void runTestIt()
 {
+  Serial.println("Testing #1");
   delay(2000);
+  Serial.println("Testing for AIDS");
+  delay(1500);
+  Serial.println("Testing testing 123");
+  delay(450);
+  Serial.println("Testerooni");
+  delay(1500);
+  Serial.println("Tests Complete");
   SUCCESS;
   state = IDLE;
 }
