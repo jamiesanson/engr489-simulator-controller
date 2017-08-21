@@ -1,6 +1,7 @@
 import sys
 import glob
 import serial
+import threading
 
 class DisconnectedError(Exception):
     pass
@@ -55,6 +56,7 @@ def solar_serial_port():
             response = s.readline().strip("b'").strip("\\r\\n")
 
             if response == "active":
+                s.close()
                 return port
 
         except:
@@ -63,7 +65,51 @@ def solar_serial_port():
     raise DisconnectedError("Simulator not found, please check connections and try again")
 
 
-#""" This function is to be run in a seperate thread, as is blocking """
-#def handle_serial(ser):
-#    while True:
-        
+
+def connect(ser, on_err, on_ok):
+    """ Trys to connect to serial instance
+
+        :turns:
+            If controller is connected
+    """
+
+    if not ser:
+        # Check for simulator, if not here then exit at this point
+        try:
+            solar_port = solar_serial_port()
+        except (EnvironmentError, DisconnectedError) as e:
+            on_err(str(e))
+            on_ok(False)
+            return
+
+        ser = serial.Serial(solar_port, \
+                            baudrate = 115200,\
+                            write_timeout = 1, \
+                            timeout = 1)
+                        
+    try:
+        ser.open()
+        if ser.read():
+            ser.close()
+            on_ok(True)
+            return
+
+        ser.close()
+    except:
+        on_err("Port was found but connection failed")
+        on_ok(False)
+        return
+
+"""
+    Class for handling serial threading
+"""
+class serial_thread(threading.Thread):
+    def __init__(self, serial, name = "Serial"):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.serial = serial
+    
+    def run(self):
+        while True:
+            println("Reading serial")
+            delay(1000)

@@ -2,16 +2,17 @@ import serial
 import curses
 import sys
 import os
+import time
 from curses.ascii import NL as newline
 from curses.ascii import BS as backspace
-from serial_utils import solar_serial_port, DisconnectedError
+from serial_utils import solar_serial_port, DisconnectedError, serial_thread, connect
 from utils import Command, split_input
 
 # Initialising the curses session and overriding print
 screen = curses.initscr()
 screen.keypad(True)
 
-def print(string):
+def printc(string):
     screen.addstr(string)
 
 def println(string = ""):
@@ -33,24 +34,8 @@ commands = [Command("help", "Run as `help <command>` for more information about 
 
 solar_port = ""
 
-
-# TODO: Uncomment for proper testing
-#
-## Check for simulator, if not here then exit at this point
-#try:
-#    solar_port = solar_serial_port()
-#except (EnvironmentError, DisconnectedError) as e:
-#    print(e)
-#    exit()
-#
-#sim_ser = serial.Serial(solar_port, \
-#                        baudrate = 115200,\
-#                        write_timeout = 1, \
-#                        timeout = 1)
-
-
-
-println("Solar cell found on port %s. Connected." % solar_port)
+ser = None
+        
 println()
 println("Available commands:")
 for command in commands:
@@ -66,7 +51,7 @@ def exit():
 def printArgs(args):
     if len(args) > 0:
         println("\n\tArguments:")
-        
+
     for arg_name, arg_desc in args.items():
         if len(arg_name) > 0:
             println("\t%s - %s" % (arg_name, arg_desc))
@@ -87,7 +72,6 @@ def help(name):
 def run(args):
     targets = ""
     thresh = ""
-
     if 'targets' in args:
         targets = args['targets']
     else:
@@ -102,6 +86,10 @@ def run(args):
 
     println("Begining simulator controller for targets: %s and temperature threshold: %s" % (targets, thresh))
 
+def stop():
+    # TODO expand on this by sending serial message
+    exit()
+
 # This function does the heavy lifting, getting the parsed input and invoking the appropriate functions
 def run_command(command):
     c = split_input(command)
@@ -112,11 +100,13 @@ def run_command(command):
     elif name == "help":
         help(c['fun'])
     elif name == "run":
-        run(c)
+        connect(ser, lambda err: println(err), lambda ok: run(c) if ok else None)
+    elif name == "stop":
+        stop()
     else:
         println("Unknown command: %s, try the `help` command" % name)
 
-print(">>> ")
+printc(">>> ")
 
 # --------------------------------  
 # Begin terminal interface
@@ -136,7 +126,7 @@ while True:
         prev_commands.append(in_cmd)
         in_cmd = ""
         curr_command_index = -1
-        print(">>> ")
+        printc(">>> ")
     elif in_char == backspace:
         # Manually implementing backspace. 
         # Remove a character from command if backspace, during command, 
