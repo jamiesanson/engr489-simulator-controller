@@ -17,37 +17,7 @@ def printc(string):
 
 def println(string = ""):
     screen.addstr(string + "\n")
-
-println()
-println('-------------------------------------------------')
-println('ENGR489 Solar Simulator Controller - Jamie Sanson')
-println('-------------------------------------------------')
-println()
-
-commands = [Command("help", "Run as `help <command>` for more information about that command"),\
-            Command("test", "Tests the solar simulator"),\
-            Command("run", "Run as `run -<arg> <arg_value> to run measurements", {"targets": "Expects comma-separated numbers",\
-                                                                                  "threshold" : "Temperature target threshold for taking measurements, defaults to 1.5 degrees Celsius"}),\
-            Command("stop", "Stops operation of controller"),\
-            Command("exit", "Stops operation of controller and exits program"),\
-            Command("log",  "Shows the past transmission")]
-
-solar_port = ""
-
-ser = None
-        
-println()
-println("Available commands:")
-for command in commands:
-    println(command.name + " - " + command.help)
-   
-println()
-
-def exit():
-    curses.endwin()
-    os.system('cls' if os.name == 'nt' else 'clear')
-    sys.exit(1)
-
+    
 def printArgs(args):
     if len(args) > 0:
         println("\n\tArguments:")
@@ -55,6 +25,14 @@ def printArgs(args):
     for arg_name, arg_desc in args.items():
         if len(arg_name) > 0:
             println("\t%s - %s" % (arg_name, arg_desc))
+
+# -------------------------------------------------
+# Region command functions
+# -------------------------------------------------
+def exit():
+    curses.endwin()
+    os.system('cls' if os.name == 'nt' else 'clear')
+    sys.exit(1)
 
 def help(name):
     for command in commands:
@@ -100,17 +78,50 @@ def run_command(command):
     elif name == "help":
         help(c['fun'])
     elif name == "run":
-        connect(ser, lambda err: println(err), lambda ok: run(c) if ok else None)
+        global ser
+        ser = connect(ser, lambda err: println(err))
+        if ser:
+            run(c)
     elif name == "stop":
         stop()
     else:
         println("Unknown command: %s, try the `help` command" % name)
 
+
+# -------------------------------------------------
+# Region simulator control code
+# -------------------------------------------------
+println()
+println('-------------------------------------------------')
+println('ENGR489 Solar Simulator Controller - Jamie Sanson')
+println('-------------------------------------------------')
+println()
+
+# Defining commands available to the user. Format: Command(name, help text, dict of arguments)
+commands = [Command("help", "Run as `help <command>` for more information about that command"),\
+            Command("test", "Tests the solar simulator"),\
+            Command("run", "Run as `run -<arg> <arg_value> to run measurements", {"targets": "Expects comma-separated numbers",\
+                                                                                  "threshold" : "Temperature target threshold for taking measurements, defaults to 1.5 degrees Celsius"}),\
+            Command("stop", "Stops operation of controller"),\
+            Command("exit", "Stops operation of controller and exits program"),\
+            Command("log",  "Shows the past transmission")]
+
+solar_port = ""
+
+ser = None
+        
+println()
+println("Available commands:")
+for command in commands:
+    println(command.name + " - " + command.help)
+   
+println()
+
 printc(">>> ")
 
-# --------------------------------  
+# -------------------------------------
 # Begin terminal interface
-# --------------------------------  
+# -------------------------------------
 in_cmd = ""
 
 # For command history

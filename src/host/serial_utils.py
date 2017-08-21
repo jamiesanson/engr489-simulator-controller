@@ -66,7 +66,7 @@ def solar_serial_port():
 
 
 
-def connect(ser, on_err, on_ok):
+def connect(ser, on_err):
     """ Trys to connect to serial instance
 
         :turns:
@@ -79,8 +79,7 @@ def connect(ser, on_err, on_ok):
             solar_port = solar_serial_port()
         except (EnvironmentError, DisconnectedError) as e:
             on_err(str(e))
-            on_ok(False)
-            return
+            return None
 
         ser = serial.Serial(solar_port, \
                             baudrate = 115200,\
@@ -91,14 +90,12 @@ def connect(ser, on_err, on_ok):
         ser.open()
         if ser.read():
             ser.close()
-            on_ok(True)
-            return
+            return ser
 
         ser.close()
     except:
         on_err("Port was found but connection failed")
-        on_ok(False)
-        return
+        return None
 
 """
     Class for handling serial threading
