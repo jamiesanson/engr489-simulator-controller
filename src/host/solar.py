@@ -5,7 +5,7 @@ import os
 import time
 from curses.ascii import NL as newline
 from curses.ascii import BS as backspace
-from serial_utils import solar_serial_port, DisconnectedError, serial_manager
+from serial_utils import serial_manager
 from utils import Command, split_input
 
 # Initialising the curses session and overriding print

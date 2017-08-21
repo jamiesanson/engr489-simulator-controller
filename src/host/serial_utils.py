@@ -69,15 +69,17 @@ def solar_serial_port():
 
 
 """
-    Class for managing serial interactions. Should be accessed on main thread
+    Class for managing serial interactions. Should be accessed on main thread as a context manager
 """            
 class serial_manager():
     def __init__(self):
         self.out_q = Queue()
         self.in_q = Queue()
         self.ser = None
-        self.st = None
-        self.stop = Event()
+        self.ctx_st = None
+        self.ctx_stop = Event()
+        self.worker_st = None
+        self.worker_stop = Event()
 
     def __enter__(self):
         self.in_q = Queue()
@@ -86,20 +88,20 @@ class serial_manager():
             self.ser = self.__connect(None, lambda err: print(err))
 
         if self.ser:
-            self.st = Thread(name = "Serial-Thread", \
+            self.ctx_st = Thread(name = "Serial-Context", \
                             daemon = True, \
                             target = self.ser_thread, \
-                            args = (self.ser, self.in_q, self.out_q, self.stop))
-            self.st.start()
+                            args = (self.ser, self.in_q, self.out_q, self.ctx_stop))
+            self.ctx_st.start()
 
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        # Nothing to do here. We want to maintain queue status
-        self.stop.set()
-        self.st.join()
+        # Nothing to do here, besides tell the thread to stop as we aren't in context anymore.
+        self.ctx_stop.set()
+        self.ctx_st.join()
 
-        self.stop = Event()
+        self.ctx_stop = Event()
         
     def __connect(self, ser, on_err):
         """ Trys to connect to serial instance
@@ -123,6 +125,33 @@ class serial_manager():
 
         return ser
 
+
+    def output(self, string):
+        self.out_q.put(string.encode())
+
+    def read_in(self):
+        return self.in_q.get()
+
+    def start_worker(self, path):
+        if not self.ser:
+            self.ser = self.__connect(None, lambda err: print(err))
+
+        if self.ser:
+            self.worker_st = Thread(name = "Serial-Worker", \
+                            daemon = True, \
+                            target = self.rec_thread, \
+                            args = (self.ser, path, self.in_q, self.out_q, self.worker_stop))
+            self.worker_st.start()
+
+    def stop_worker(self):
+        self.output("stop")
+        self.worker_stop.set()
+        self.worker_st.join()
+        self.worker_stop = Event()
+
+    # -----------------------------------
+    #   Thread region
+    # -----------------------------------   
     def ser_thread(self, ser, in_q, out_q, stop):
         while not stop.is_set():
             if not out_q.empty():
@@ -130,14 +159,10 @@ class serial_manager():
 
             in_q.put(str(ser.readline()).strip("b'").strip("\\r\\n"))
 
-    def output(self, string):
-        if not self.st.is_alive():
-            __enter__()
-
-        self.out_q.put(string.encode())
-
-    def read_in(self):
-        if not self.st.is_alive():
-            __enter__()
-
-        return self.in_q.get()
+    def rec_thread(self, ser, path, in_q, out_q, stop):
+        with open(path, 'w') as f:
+            while not stop.is_set():
+                if not out_q.empty():
+                    ser.write(out_q.get())
+                line = str(ser.readline()).strip("b'").strip("\\r\\n")
+                f.write(line + '\n')
