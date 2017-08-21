@@ -2,7 +2,7 @@ import curses
 import shlex
 
 class Command:
-    def __init__(self, name, help, args = ["No arguments"]):
+    def __init__(self, name, help, args = {}):
         self.name = name
         self.help = help
         self.args = args

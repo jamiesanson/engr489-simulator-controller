@@ -63,3 +63,7 @@ def solar_serial_port():
     raise DisconnectedError("Simulator not found, please check connections and try again")
 
 
+#""" This function is to be run in a seperate thread, as is blocking """
+#def handle_serial(ser):
+#    while True:
+        

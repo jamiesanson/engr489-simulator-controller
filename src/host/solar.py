@@ -25,11 +25,11 @@ println()
 
 commands = [Command("help", "Run as `help <command>` for more information about that command"),\
             Command("test", "Tests the solar simulator"),\
-            Command("run", "Run as `run -<arg> <arg_value> to run measurements", ["`targets`: Expects comma-separated numbers",\
-                                                                                  "`threshold`: Temperature target threshold for taking measurements, defaults to 1.5 degrees Celsius"]),\
+            Command("run", "Run as `run -<arg> <arg_value> to run measurements", {"targets": "Expects comma-separated numbers",\
+                                                                                  "threshold" : "Temperature target threshold for taking measurements, defaults to 1.5 degrees Celsius"}),\
             Command("stop", "Stops operation of controller"),\
             Command("exit", "Stops operation of controller and exits program"),\
-            Command("log", "")]
+            Command("log",  "Shows the past transmission")]
 
 solar_port = ""
 
@@ -55,7 +55,7 @@ println()
 println("Available commands:")
 for command in commands:
     println(command.name + " - " + command.help)
-
+   
 println()
 
 def exit():
@@ -63,10 +63,19 @@ def exit():
     os.system('cls' if os.name == 'nt' else 'clear')
     sys.exit(1)
 
+def printArgs(args):
+    if len(args) > 0:
+        println("\n\tArguments:")
+        
+    for arg_name, arg_desc in args.items():
+        if len(arg_name) > 0:
+            println("\t%s - %s" % (arg_name, arg_desc))
+
 def help(name):
     for command in commands:
         if command.name == name:
             println(command.help)
+            printArgs(command.args)
             return
     
         if len(name) == 0 and command.name == "help":
