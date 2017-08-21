@@ -47,19 +47,21 @@ def solar_serial_port():
 
     for port in ports:
         try:
-            s = serial.Serial(port, \
+            s = serial.Serial(port = port, \
                                 baudrate = 115200,\
                                 write_timeout = 1, \
                                 timeout = 1)
 
-            s.write("sst36vuw".encode())
-            response = s.readline().strip("b'").strip("\\r\\n")
-
+            
+            print("Wrote: " + str(s.write("sst36vuw".encode())))
+            response = str(s.readline()).strip('b''').strip('\\r\\n')
+            print("Response: " + str(response))
             if response == "active":
                 s.close()
                 return port
 
-        except:
+        except Exception as e:
+            print(e)
             pass
 
     raise DisconnectedError("Simulator not found, please check connections and try again")

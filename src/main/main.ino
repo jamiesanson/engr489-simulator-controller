@@ -15,6 +15,7 @@
       * "stop\n" - Stops the main operation of the hardware.
       * "temp:5,10,15,20,25...\n" - Sets the temperature targets for the device.
       * "t_thresh:1.5\n" - Sets the temperature target threshold for taking measurements.
+      * "sst36vuw\n" - An announce from the connected device to check the controller exists
 
     The hardware used includes:
       * MAX31855K - SPI-based K-type thermocouple amplifier
@@ -45,6 +46,7 @@
 #define STOP_CMD String("stop")
 #define TEMP_RNG_HEADER String("temp:")
 #define TEMP_THR_HEADER String("t_thresh:")
+#define ANNOUNCE_CMD String("sst36vuw")
 
 // USEFUL MACROS
 #define SUCCESS Serial.println(String("done"))
@@ -198,7 +200,6 @@ void parseTemperatureRange()
 
 void parseTemperatureThreshold()
 {
-  String 
 }
 
 void runExternalCmd() {
@@ -227,6 +228,10 @@ void runExternalCmd() {
   else if (cmdCode == (STOP_CMD + String('\n')))
   {
     state = IDLE;
+  }
+  else if (cmdCode == (ANNOUNCE_CMD + String('\n')))
+  {
+    Serial.println("active");
   }
 }
 
