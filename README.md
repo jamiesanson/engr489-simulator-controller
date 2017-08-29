@@ -14,7 +14,11 @@ Code to handle the communication of information between the host computer and th
 
 A number of libraries are used, and are required dependencies to run the python script. These aren't needed when running the all-in-one executable. All libraries can be acquired using `pip install XXX`, with the exception being curses, which isn't officially supported on Windows due to the fact that the default command line interface `cmd` doesn't support redirection. Unofficial versions of this can be found and used in `powershell`.
 
-## Libraries used
+### Libraries used
 * PySerial
 * Curses (Unofficially found here: http://www.lfd.uci.edu/~gohlke/pythonlibs/#curses)
-* Shlex
+* Shlex, threading, os, sys (built in modules)
+
+## MATLAB Code
+This code exists for classification of the solar simulator, given inputs of spatial uniformity. This is to be extended to handle calculation of temporal instability
+and spectral match.
