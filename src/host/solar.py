@@ -6,6 +6,7 @@ import time
 from curses.ascii import NL as newline
 from curses.ascii import BS as backspace
 from serial_manager import serial_manager
+from serial_utils import DisconnectedError
 from utils import Command, split_input, increment_filename
 
 # Initialising the curses session and overriding print
@@ -75,12 +76,11 @@ def run(args):
             return
 
         println("Begining simulator controller for targets: %s and temperature threshold: %s" % (targets, thresh))
-        sm.output("test")
-        in_str = sm.read_in()
-        while not in_str:
-            in_str = sm.read_in()
-        
-        println(in_str)
+        sm.output("temp:%s\n" % targets)
+        sm.output("t_thresh:%s\n" % thresh)
+
+   
+    start_thread(filename = "run.csv", run_cmd = "run")
 
 def stop():
     global serial_manager
@@ -88,15 +88,22 @@ def stop():
         println("Stopping worker thread")
         serial_manager.stop_worker()
     
+def run_sweep():
+    start_thread(filename = "sweep.csv", run_cmd = "runsweep")
 
-def runSweep():
+# Function for starting the worker thread in a specific state
+def start_thread(filename, run_cmd):
     global serial_manager
-    sweep_filename = increment_filename("sweep")
-    sweep_filename = sweep_filename + ".csv"
+    run_filename = increment_filename(filename)
 
-    println("Staring worker thread, outputing to " + sweep_filename)
-    serial_manager.start_worker(sweep_filename)
-    serial_manager.output("runsweep")
+    println("Staring worker thread, outputing to " + run_filename)
+    try:
+        serial_manager.start_worker(run_filename)
+    except DisconnectedError as e:
+        println(str(e))
+        return
+
+    serial_manager.output(run_cmd)
     println("Thread started")
 
 # This function does the heavy lifting, getting the parsed input and invoking the appropriate functions
@@ -115,7 +122,7 @@ def run_command(command):
     elif name == "test":
         test()
     elif name == "runsweep":
-        runSweep()
+        run_sweep()
     else:
         println("Unknown command: %s, try the `help` command" % name)
 

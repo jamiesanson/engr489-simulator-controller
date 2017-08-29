@@ -62,4 +62,4 @@ def solar_serial_port():
             print(e)
             pass
 
-    raise DisconnectedError("Simulator not found, please check connections and try again")
+    raise DisconnectedError("")

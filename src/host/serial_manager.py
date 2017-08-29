@@ -23,7 +23,8 @@ class serial_manager():
         if not self.ser:		
             self.ser = self.__connect(None, lambda err: print(err))		
 		
-        if self.ser:		
+        if self.ser:
+            self.clear_queues()		
             self.ctx_st = Thread(name = "Serial-Context", daemon = True, target = self.ser_thread, args = (self.ser, self.in_q, self.out_q, self.ctx_stop))		
             self.ctx_st.start()		
 		
@@ -55,20 +56,37 @@ class serial_manager():
 		
         return ser		
 		
-		
+    def clear_queues(self):
+        t = Thread(target=self.__empty, args = (self.in_q, self.out_q))
+        t.join()
+
+    def __empty(self, in_q, out_q):
+        while not in_q.empty():
+            in_q.get()
+            in_q.task_done()
+        
+        while not out_q.empty():
+            out_q.get()
+            out_q.task_done()
+
     def output(self, string):		
         self.out_q.put(string.encode())		
 		
     def read_in(self):		
-        return self.in_q.get()		
+        in_str = self.in_q.get()		
+        self.in_q.task_done()
+        return in_str
 		
     def start_worker(self, path):		
         if not self.ser:		
             self.ser = self.__connect(None, lambda err: print(err))		
 		
         if self.ser:		
+            self.clear_queues()
             self.worker_st = Thread(name = "Serial-Worker", daemon = True, target = self.rec_thread, args = (self.ser, path, self.in_q, self.out_q, self.worker_stop))		
-            self.worker_st.start()		
+            self.worker_st.start()
+        else:
+            raise DisconnectedError("Serial connection not established")
 		
     def stop_worker(self):		
         self.output("stop")		
@@ -82,7 +100,8 @@ class serial_manager():
     def ser_thread(self, ser, in_q, out_q, stop):		
         while not stop.is_set():		
             if not out_q.empty():		
-                ser.write(out_q.get())		
+                ser.write(out_q.get())	
+                out_q.task_done()		
 		
             in_q.put(str(ser.readline()).strip("b'").strip("\\r\\n"))		
 		
@@ -90,7 +109,8 @@ class serial_manager():
         with open(path, 'w') as f:		
             while not stop.is_set():		
                 if not out_q.empty():		
-                    ser.write(out_q.get())		
+                    ser.write(out_q.get())	
+                    out_q.task_done()	
                 line = str(ser.readline()).strip("b'").strip("\\r\\n")
 
                 # The following indicates the task is done, therefore call the completion callback

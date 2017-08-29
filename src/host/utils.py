@@ -1,5 +1,6 @@
 import curses
 import shlex
+from os import listdir
 
 class Command:
     def __init__(self, name, help, args = {}):
@@ -27,4 +28,14 @@ def split_input(input_command):
     return decomposed
 
 def increment_filename(name):
-    return name + "1"
+    # list current directory then count name matches
+    count = 0
+    files = listdir()
+
+    name, extension = name.split('.')
+
+    for filename in files:
+        if name in filename:
+            count = count + 1
+
+    return name + ("" if count == 0 else "_%s" % str(count)) + ".%s" % extension
