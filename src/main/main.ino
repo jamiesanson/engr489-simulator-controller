@@ -120,13 +120,8 @@ void runTestIt()
 {
   Serial.println("Testing #1");
   delay(2000);
-  Serial.println("Testing for AIDS");
-  delay(1500);
-  Serial.println("Testing testing 123");
-  delay(450);
-  Serial.println("Testerooni");
-  delay(1500);
-  Serial.println("Tests Complete");
+  Serial.println("This is another test response. TODO");
+  delay(500);
   SUCCESS;
   state = IDLE;
 }
@@ -148,8 +143,8 @@ void stepAndMeasure()
   float temp = getCellTemperature();
   float loadV = getLoadVoltage();
   float loadI = getLoadCurrent();
-
   
+  Serial.println(String(temp) + "," + String(loadV) + "," + String(loadI));
 }
 
 boolean isTemperatureNearTarget()
@@ -157,7 +152,8 @@ boolean isTemperatureNearTarget()
   float temp = getCellTemperature();
   for (int i = 0; i < lengthOf(temperatureBuffer); i++)
   {
-    if (abs(temp - temperatureBuffer[i]) < temperatureThreshold) {
+    if (abs(temp - temperatureBuffer[i]) < temperatureThreshold) 
+    {
       return true;
     }
   }
@@ -174,9 +170,10 @@ void feedCommand()
     if (isCmd(TEMP_RNG_HEADER)) 
     {
       parseTemperatureRange();
-    } else if (isCmd(TEMP_THR_HEADER)) 
+    } 
+    else if (isCmd(TEMP_THR_HEADER)) 
     {      
-      
+      parseTemperatureThreshold();
     } 
     else       
     {
@@ -211,6 +208,10 @@ void parseTemperatureRange()
 
 void parseTemperatureThreshold()
 {
+  String tempArr = cmdCode.substring(TEMP_THR_HEADER.length());
+  // Length -1 is used on the following line as we want to neglect the '\n' character
+  String temp = tempArr.substring(commaIndex, tempArr.length() - 1);
+  temperatureThreshold = temp.toFloat();
 }
 
 void runExternalCmd() {
@@ -225,6 +226,7 @@ void runExternalCmd() {
       sumTempBuffer += temperatureBuffer[i];
     }
     
+    // Checking the threshold is set and targets sum to greater than 0 degrees
     boolean setupOk = temperatureThreshold >= 0 && sumTempBuffer > 0.0;
     
     if (setupOk) 
