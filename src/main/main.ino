@@ -47,6 +47,7 @@
 #define ANNOUNCE_CMD String("sst36vuw")
 #define TEMP_RNG_HEADER String("temp:")
 #define TEMP_THR_HEADER String("t_thresh:")
+#define RUN_SWEEP_CMD String("runsweep")
 
 // USEFUL MACROS
 #define SUCCESS Serial.println(String("done"))
@@ -67,16 +68,21 @@ PROGMEM enum ProgramState
 {
   IDLE,
   TEST,
-  RUN
+  RUN,
+  RUN_SWEEP
 };
 
 // Steps per revolution for stepper motor
 static const int STEPS_PER_REVOLUTION = 64 * 32; 
 static const int STEPS_PER_MEASUREMENT = 5;
+// Range of degrees potentiometer can turn through
+static const int POTENTIOMETER_RANGE = 270;
+static const int STEPS_PER_SWEEP = POTENTIOMETER_RANGE*(STEPS_PER_REVOLUTION/360);
 
 String cmdCode = "";
 float temperatureBuffer[20] = {};
 float temperatureThreshold = -1.0;
+int stepCount = 0;
 
 // Thermocouple instantiation. Usage: Thermocouple.readCelcius() : Double. Check output using isnan
 Adafruit_MAX31855 Thermocouple(THERMOCOUPLE_CS); 
@@ -112,7 +118,9 @@ void loop()
     case RUN:
       runMainIt();
       break;
-      
+    case RUN_SWEEP:
+      runSweepIt();
+      break;      
   }
 }
 
@@ -137,14 +145,38 @@ void runMainIt()
   state = IDLE;
 }
 
+// Single iteration of sweep command. Currently just calls stepAndMeasure until
+// a full sweep of measurements is gathered
+void runSweepIt()
+{
+  if (stepCount < STEPS_PER_SWEEP)
+  {
+    stepAndMeasure();
+    stepCount += STEPS_PER_MEASUREMENT;
+  } 
+  else 
+  {
+    resetPot();
+    stepCount = 0;
+    SUCCESS;
+    state = IDLE;
+  }
+}
+
 void stepAndMeasure() 
 {
   StepperMotor.step(STEPS_PER_MEASUREMENT);
   float temp = getCellTemperature();
   float loadV = getLoadVoltage();
   float loadI = getLoadCurrent();
-  
+
   Serial.println(String(temp) + "," + String(loadV) + "," + String(loadI));
+}
+
+// To be called *after* a full sweep
+void resetPot()
+{
+  StepperMotor.step(-STEPS_PER_SWEEP);
 }
 
 boolean isTemperatureNearTarget()
@@ -246,6 +278,10 @@ void runExternalCmd() {
   {
     Serial.println("active");
   }
+  else if (isCmd(RUN_SWEEP_CMD))
+  {
+    state = RUN_SWEEP;
+  }
 }
 
 float getCellTemperature()
@@ -256,27 +292,15 @@ float getCellTemperature()
     temp += Thermocouple.readCelsius();
   }
 
-  return temp/10.0;
+  return temp/((float) TEMP_AVERAGE_COUNT);
 }
 
 float getLoadVoltage()
 {
-  
+  return 0.56;
 }
 
 float getLoadCurrent()
 {
-  
+  return 1.0;
 }
-
-void setLightState(LightState state)
-{
-  switch(state) 
-  {
-    case ON:
-      break;
-    case OFF:
-      break;
-  }
-}
-
