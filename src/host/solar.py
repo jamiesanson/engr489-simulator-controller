@@ -6,7 +6,7 @@ import time
 from curses.ascii import NL as newline
 from curses.ascii import BS as backspace
 from serial_manager import serial_manager
-from utils import Command, split_input
+from utils import Command, split_input, increment_filename
 
 # Initialising the curses session and overriding print
 screen = curses.initscr()
@@ -83,8 +83,21 @@ def run(args):
         println(in_str)
 
 def stop():
-    # TODO expand on this by sending serial message
-    exit()
+    global serial_manager
+    if (serial_manager.worker_alive()):
+        println("Stopping worker thread")
+        serial_manager.stop_worker()
+    
+
+def runSweep():
+    global serial_manager
+    sweep_filename = increment_filename("sweep")
+    sweep_filename = sweep_filename + ".csv"
+
+    println("Staring worker thread, outputing to " + sweep_filename)
+    serial_manager.start_worker(sweep_filename)
+    serial_manager.output("runsweep")
+    println("Thread started")
 
 # This function does the heavy lifting, getting the parsed input and invoking the appropriate functions
 def run_command(command):
@@ -99,8 +112,10 @@ def run_command(command):
         run(c)
     elif name == "stop":
         stop()
-    elif name== "test":
+    elif name == "test":
         test()
+    elif name == "runsweep":
+        runSweep()
     else:
         println("Unknown command: %s, try the `help` command" % name)
 
@@ -121,7 +136,8 @@ commands = [Command("help", "Run as `help <command>` for more information about 
                                                                                   "threshold" : "Temperature target threshold for taking measurements, defaults to 1.5 degrees Celsius"}),\
             Command("stop", "Stops operation of controller"),\
             Command("exit", "Stops operation of controller and exits program"),\
-            Command("log",  "Shows the past transmission")]
+            Command("log",  "Shows the past transmission"),\
+            Command("runsweep", "Runs a single sweep of measurements. Useful for testing")]
 
 solar_port = ""
 

@@ -25,3 +25,6 @@ def split_input(input_command):
             decomposed['fun'] = prev_arg
 
     return decomposed
+
+def increment_filename(name):
+    return name + "1"
