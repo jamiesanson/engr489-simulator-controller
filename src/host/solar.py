@@ -3,6 +3,7 @@ import curses
 import sys
 import os
 import time
+from subprocess import Popen
 from curses.ascii import NL as newline
 from curses.ascii import BS as backspace
 from serial_manager import serial_manager
@@ -60,27 +61,36 @@ def help(name):
 
 def run(args):
     global serial_manager
-    with serial_manager as sm:
-        targets = ""
-        thresh = ""
-        if 'targets' in args:
-            targets = args['targets']
-        else:
-            println("Missing temperature targets argument, try run -targets 5,10,30 -threshold 2")
+    if 'fun' in args and args['fun'] == 't':
+        try:
+            serial_manager.start_worker("temp.csv")
+        except DisconnectedError as e:
+            println(str(e))
             return
 
-        if 'threshold' in args:
-            thresh = args['threshold']
-        else:
-            println("Missing temperature threshold argument, try run -targets 5,10,30 -threshold 2")
-            return
+        serial_manager.output('run_therm')
+        p = Popen('start python tempser.py temp.csv', shell=True)
+    else:
+        with serial_manager as sm:
+            targets = ""
+            thresh = ""
+            if 'targets' in args:
+                targets = args['targets']
+            else:
+                println("Missing temperature targets argument, try run -targets 5,10,30 -threshold 2")
+                return
 
-        println("Begining simulator controller for targets: %s and temperature threshold: %s" % (targets, thresh))
-        sm.output("temp:%s\n" % targets)
-        sm.output("t_thresh:%s\n" % thresh)
+            if 'threshold' in args:
+                thresh = args['threshold']
+            else:
+                println("Missing temperature threshold argument, try run -targets 5,10,30 -threshold 2")
+                return
 
-   
-    start_thread(filename = "run.csv", run_cmd = "run")
+            println("Begining simulator controller for targets: %s and temperature threshold: %s" % (targets, thresh))
+            sm.output("temp:%s\n" % targets)
+            sm.output("t_thresh:%s\n" % thresh)
+            
+            start_thread(filename = "run.csv", run_cmd = "run")
 
 def stop():
     global serial_manager
@@ -139,8 +149,9 @@ println()
 # Defining commands available to the user. Format: Command(name, help text, dict of arguments)
 commands = [Command("help", "Run as `help <command>` for more information about that command"),\
             Command("test", "Tests the solar simulator"),\
-            Command("run", "Run as `run -<arg> <arg_value> to run measurements", {"targets": "Expects comma-separated numbers",\
-                                                                                  "threshold" : "Temperature target threshold for taking measurements, defaults to 1.5 degrees Celsius"}),\
+            Command("run", "Run as `run -<arg> <arg_value> to run measurements. OR `run -t` for thermocouple test ", \
+                                                                            {"targets": "Expects comma-separated numbers",\
+                                                                            "threshold" : "Temperature target threshold for taking measurements, defaults to 1.5 degrees Celsius"}),\
             Command("stop", "Stops operation of controller"),\
             Command("exit", "Stops operation of controller and exits program"),\
             Command("log",  "Shows the past transmission"),\

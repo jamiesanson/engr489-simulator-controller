@@ -22,7 +22,7 @@ def split_input(input_command):
 
     # Should only occur for help commands where there is no value for the argument
     if prev_arg not in decomposed:
-        if decomposed['cmd'] == "help":
+        if decomposed['cmd'] == "help" or decomposed['cmd'] == "run":
             decomposed['fun'] = prev_arg
 
     return decomposed

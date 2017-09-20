@@ -1,6 +1,7 @@
 from threading import Thread, Event
 import time
 from queue import Queue
+import serial
 from serial_utils import DisconnectedError, solar_serial_port
 
 """
@@ -31,11 +32,12 @@ class serial_manager():
         return self		
 		
     def __exit__(self, exc_type, exc_value, traceback):		
-        # Nothing to do here, besides tell the thread to stop as we aren't in context anymore.		
-        self.ctx_stop.set()		
-        self.ctx_st.join()		
-		
-        self.ctx_stop = Event()		
+        if self.ctx_st:
+            # Nothing to do here, besides tell the thread to stop as we aren't in context anymore.		
+            self.ctx_stop.set()		
+            self.ctx_st.join()		
+            
+            self.ctx_stop = Event()		
         		
     def __connect(self, ser, on_err):		
         """ Trys to connect to serial instance		
@@ -58,6 +60,7 @@ class serial_manager():
 		
     def clear_queues(self):
         t = Thread(target=self.__empty, args = (self.in_q, self.out_q))
+        t.start()
         t.join()
 
     def __empty(self, in_q, out_q):
@@ -89,7 +92,8 @@ class serial_manager():
             raise DisconnectedError("Serial connection not established")
 		
     def stop_worker(self):		
-        self.output("stop")		
+        self.output("stop")	
+        time.sleep(3)	
         self.worker_stop.set()		
         self.worker_st.join()		
         self.worker_stop = Event()		
