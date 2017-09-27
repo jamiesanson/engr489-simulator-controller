@@ -9,25 +9,24 @@
     the cell being tested only when it needs to be.
 
     This code expects Serial in specific formats. These are:
-      * "test\n" - Runs a self test of the hardware and reports back via Serial, 
-                   finalised by the use of the `SUCCESS;` macro.
-      * "run\n"  - Runs the main operation of the hardware.
-      * "stop\n" - Stops the main operation of the hardware.
-      * "temp:5,10,15,20,25...\n" - Sets the temperature targets for the device.
-      * "t_thresh:1.5\n" - Sets the temperature target threshold for taking measurements.
-      * "sst36vuw\n" - An announce from the connected device to check the controller exists
+      * "test\n"      - Runs a self test of the hardware and reports back via Serial, 
+                        finalised by the use of the `SUCCESS;` macro.
+      * "runsweep\n" - Runs the main operation of the hardware.
+      * "reset\n"      - Stops the main operation of the hardware.
+      * "sst36vuw\n"  - An announce from the connected device to check the controller exists
 
     The hardware used includes:
       * MAX31855K - SPI-based K-type thermocouple amplifier
       * X113647 and 28BYJ-48 - Stepper driver and motor respectively
       * MP930 - 1 ohm thick film power resistor
-      * Generic 5 ohm and 10 ohm rotary potentiometersa
+      * Generic 5 ohm and 10 ohm rotary potentiometers
 
 */
 
 // INCLUDES
-#include "Adafruit_MAX31855.h"
+#include <Adafruit_MAX31855.h>
 #include <X113647Stepper.h>
+#include <ArduinoJson.h>
 
 // PIN DEFINITIONS
 #define PSU_OUTPUT_PIN 2
@@ -68,7 +67,6 @@ PROGMEM enum ProgramState
 {
   IDLE,
   TEST,
-  RUN,
   RUN_SWEEP
 };
 
@@ -115,32 +113,29 @@ void loop()
     case TEST:
       runTestIt();
       break;
-    case RUN:
-      runMainIt();
-      break;
     case RUN_SWEEP:
       runSweepIt();
       break;      
   }
+
+  emitState();
+  delay(200);
 }
 
 void runTestIt()
 {
+  DynamicJsonBuffer jsonBuffer(200);  
+  JsonObject& root = jsonBuffer.createObject();
+  root["thermTemp"] = getThermocoupleTemp();
+  root["rtd1Temp"] = getRTD1Temp();
+  root["rtd2Temp"] = getRTD1Temp();
+  root["volt"] = getLoadVoltage();
+  root["curr"] = getLoadCurrent();
+  root.printTo(Serial);
   Serial.println("Testing #1");
   delay(2000);
   Serial.println("This is another test response. TODO");
   delay(500);
-  SUCCESS;
-  state = IDLE;
-}
-
-void runMainIt()
-{
-  // TODO: - Wait for temperature to reach set values
-  //       - Run pot sweep measuring voltage and current
-  //       - Log data to SD card and repeat
-  //       - Wait for next temperature value
-  
   SUCCESS;
   state = IDLE;
 }
@@ -151,7 +146,7 @@ void runSweepIt()
 {
   if (stepCount < STEPS_PER_SWEEP)
   {
-    stepAndMeasure();
+//    stepAndMeasure();
     stepCount += STEPS_PER_MEASUREMENT;
   } 
   else 
@@ -163,34 +158,23 @@ void runSweepIt()
   }
 }
 
-void stepAndMeasure() 
-{
-  StepperMotor.step(STEPS_PER_MEASUREMENT);
-  float temp = getCellTemperature();
-  float loadV = getLoadVoltage();
-  float loadI = getLoadCurrent();
-
-  Serial.println(String(temp) + "," + String(loadV) + "," + String(loadI));
-}
-
 // To be called *after* a full sweep
 void resetPot()
 {
   StepperMotor.step(-STEPS_PER_SWEEP);
 }
 
-boolean isTemperatureNearTarget()
+void emitState() 
 {
-  float temp = getCellTemperature();
-  for (int i = 0; i < lengthOf(temperatureBuffer); i++)
-  {
-    if (abs(temp - temperatureBuffer[i]) < temperatureThreshold) 
-    {
-      return true;
-    }
-  }
-
-  return false;
+  DynamicJsonBuffer jsonBuffer(200);  
+  JsonObject& root = jsonBuffer.createObject();
+  root["thermTemp"] = getThermocoupleTemp();
+  root["rtd1Temp"] = getRTD1Temp();
+  root["rtd2Temp"] = getRTD1Temp();
+  root["volt"] = getLoadVoltage();
+  root["curr"] = getLoadCurrent();
+  root.printTo(Serial);
+  Serial.print('\n');
 }
 
 void feedCommand()
@@ -199,92 +183,24 @@ void feedCommand()
   {
     cmdCode = Serial.readString();
 
-    if (isCmd(TEMP_RNG_HEADER)) 
+    if (isCmd(TEST_CMD)) 
     {
-      parseTemperatureRange();
+      state = TEST;
     } 
-    else if (isCmd(TEMP_THR_HEADER)) 
-    {      
-      parseTemperatureThreshold();
-    } 
-    else       
+    else if (isCmd(ANNOUNCE_CMD))
     {
-      runExternalCmd(); 
+      Serial.println("active");
+    }
+    else if (isCmd(RUN_SWEEP_CMD))
+    {
+      state = RUN_SWEEP;
     }
     
     cmdCode = "";
   }
 }
 
-void parseTemperatureRange()
-{
-  String tempArr = cmdCode.substring(TEMP_RNG_HEADER.length());
-  int commaIndex = 0;
-  int count = 0;
-  
-  while (commaIndex != -1)
-  {
-    int nextComma = tempArr.indexOf(commaIndex, ',');
-    // Length -1 is used on the following line as we want to neglect the '\n' character
-    String temp = tempArr.substring(commaIndex, nextComma == -1 ? tempArr.length() - 1 : nextComma);
-
-    if (count < lengthOf(temperatureBuffer)) 
-    {
-      temperatureBuffer[count] = temp.toFloat();
-    }
-    
-    commaIndex = nextComma;
-    count++;
-  }
-}
-
-void parseTemperatureThreshold()
-{
-  String tempArr = cmdCode.substring(TEMP_THR_HEADER.length());
-  // Length -1 is used on the following line as we want to neglect the '\n' character
-  String temp = tempArr.substring(commaIndex, tempArr.length() - 1);
-  temperatureThreshold = temp.toFloat();
-}
-
-void runExternalCmd() {
-  if (isCmd(TEST_CMD)) 
-  {
-    state = TEST;
-  } 
-  else if (isCmd(RUN_CMD))
-  {
-    float sumTempBuffer = 0.0;
-    for (int i = 0; i < lengthOf(temperatureBuffer); i++) {
-      sumTempBuffer += temperatureBuffer[i];
-    }
-    
-    // Checking the threshold is set and targets sum to greater than 0 degrees
-    boolean setupOk = temperatureThreshold >= 0 && sumTempBuffer > 0.0;
-    
-    if (setupOk) 
-    {
-      state = RUN;
-    } else 
-    {
-      FAIL("Temperature threshold or target values not set");
-      state = IDLE;
-    }
-  }
-  else if (isCmd(STOP_CMD))
-  {
-    state = IDLE;
-  }
-  else if (isCmd(ANNOUNCE_CMD))
-  {
-    Serial.println("active");
-  }
-  else if (isCmd(RUN_SWEEP_CMD))
-  {
-    state = RUN_SWEEP;
-  }
-}
-
-float getCellTemperature()
+float getThermocoupleTemp()
 {
   double temp = 0.0;
   for (int i = 0; i < TEMP_AVERAGE_COUNT; i++)
@@ -292,7 +208,21 @@ float getCellTemperature()
     temp += Thermocouple.readCelsius();
   }
 
-  return temp/((float) TEMP_AVERAGE_COUNT);
+  if (isnan(temp)) {
+    return -200.0;
+  } else {
+    return temp/((float) TEMP_AVERAGE_COUNT);
+  }
+}
+
+float getRTD1Temp()
+{
+  return 0.0;
+}
+
+float getRTD2Temp()
+{
+  return 0.0;
 }
 
 float getLoadVoltage()
