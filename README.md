@@ -9,7 +9,8 @@ Code to automate the collection of data from a temperature controlled solar simu
 * Adafruit MAX31855K Library (https://github.com/adafruit/Adafruit-MAX31855-library)
 * X113647 Stepper Motor Library (https://github.com/tardate/X113647Stepper)
 
-## Host Computer Code
+## Host Computer Code **Note, this is now handled by the Solar JavaFX project**
+
 Code to handle the communication of information between the host computer and the controller device. This code runs on the command line through the use of the `curses` package, and is able to be bundled into a single executable file through the use of `PyInstaller` on version of Python < 3.6.
 
 A number of libraries are used, and are required dependencies to run the python script. These aren't needed when running the all-in-one executable. All libraries can be acquired using `pip install XXX`, with the exception being curses, which isn't officially supported on Windows due to the fact that the default command line interface `cmd` doesn't support redirection. Unofficial versions of this can be found and used in `powershell`.
